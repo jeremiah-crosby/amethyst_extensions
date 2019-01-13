@@ -41,10 +41,12 @@ pub struct SerializedSpriteSheet {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SpriteAnimationData {
-    pub id: u64,
-    pub frame_count: u16,
-    pub indices: Vec<usize>,
+pub enum SpriteAnimationData {
+    SpriteIndex {
+        id: u64,
+        frame_count: u16,
+        indices: Vec<usize>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -113,24 +115,30 @@ impl AnimatedSpritePrefab {
         animation_store: &AssetStorage<Animation<SpriteRender>>,
     ) {
         for animation_data in &self.animations {
-            // Sampler
-            let sampler = Sampler {
-                input: (0..animation_data.frame_count + 1).map(f32::from).collect(),
-                output: animation_data
-                    .indices
-                    .iter()
-                    .map(|i| SpriteRenderPrimitive::SpriteIndex(i.clone()))
-                    .collect(),
-                function: InterpolationFunction::Step,
-            };
-            let sampler_handle = loader.load_from_data(sampler.clone(), (), sampler_store);
+            match animation_data {
+                SpriteAnimationData::SpriteIndex {
+                    id,
+                    frame_count,
+                    indices,
+                } => {
+                    // Sampler
+                    let sampler = Sampler {
+                        input: (0..frame_count + 1).map(f32::from).collect(),
+                        output: indices
+                            .iter()
+                            .map(|i| SpriteRenderPrimitive::SpriteIndex(i.clone()))
+                            .collect(),
+                        function: InterpolationFunction::Step,
+                    };
+                    let sampler_handle = loader.load_from_data(sampler.clone(), (), sampler_store);
 
-            // Animation
-            let animation =
-                Animation::new_single(0, SpriteRenderChannel::SpriteIndex, sampler_handle);
-            let animation_handle = loader.load_from_data(animation, (), animation_store);
-            self.animation_handles
-                .push((animation_data.id, animation_handle));
+                    // Animation
+                    let animation =
+                        Animation::new_single(0, SpriteRenderChannel::SpriteIndex, sampler_handle);
+                    let animation_handle = loader.load_from_data(animation, (), animation_store);
+                    self.animation_handles.push((*id, animation_handle));
+                }
+            };
         }
     }
 }
