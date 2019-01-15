@@ -1,0 +1,25 @@
+#![enable(implicit_some)]
+Prefab (
+    entities: [
+        (
+            data: (
+                (
+                    animations: [
+                        // each animation is defined by an id, and a set of samplers
+                        (Translate, (
+                            // each sampler consist of:
+                            //   * target entity (which is an index in this prefab),
+                            //   * animation channel, here the attribute on Transform
+                            //   * interpolation data and function
+                            samplers: [(0, SpriteIndex, (
+                                input: [0., 1., 2., 3., 4., 5., 6.],
+                                output: [0., 1., 2., 3., 4., 5., 6.],
+                                function: Step,
+                            ))]
+                        ))
+                    ],
+                )
+            ),
+        ),
+    ],
+)
