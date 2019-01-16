@@ -8,11 +8,12 @@ use amethyst::{
     assets::{AssetStorage, Loader, PrefabLoader, PrefabLoaderSystem, ProgressCounter, RonFormat},
     core::{Parent, Transform, TransformBundle},
     ecs::Entity,
+    input::{get_key, is_close_requested, is_key_down},
     prelude::*,
     renderer::{
-        Camera, ColorMask, DepthMode, DisplayConfig, DrawFlat2D, Pipeline, PngFormat, PosNormTex,
-        Projection, RenderBundle, SpriteRender, SpriteSheet, SpriteSheetFormat, SpriteSheetHandle,
-        Stage, Texture, TextureMetadata, ALPHA,
+        Camera, ColorMask, DepthMode, DisplayConfig, DrawFlat2D, ElementState, Pipeline, PngFormat,
+        PosNormTex, Projection, RenderBundle, SpriteRender, SpriteSheet, SpriteSheetFormat,
+        SpriteSheetHandle, Stage, Texture, TextureMetadata, VirtualKeyCode, ALPHA,
     },
     utils::application_root_dir,
 };
@@ -62,6 +63,12 @@ fn start_animation(
     );
 }
 
+fn stop_animation(world: &mut World, entity: Entity, id: u64) {
+    let mut sets = world.write_storage();
+    let control_set = get_animation_set::<u64, SpriteRender>(&mut sets, entity).unwrap();
+    control_set.abort(id);
+}
+
 struct Loading {
     progress_counter: ProgressCounter,
     player_entity: Option<Entity>,
@@ -88,6 +95,7 @@ impl SimpleState for Loading {
         if self.progress_counter.is_complete() {
             Trans::Switch(Box::new(Example {
                 player_entity: self.player_entity.unwrap(),
+                current_animation: 1,
             }))
         } else {
             Trans::None
@@ -97,12 +105,42 @@ impl SimpleState for Loading {
 
 struct Example {
     player_entity: Entity,
+    current_animation: u64,
 }
 
 impl SimpleState for Example {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
         let world = data.world;
         start_animation(world, self.player_entity, 1, 1., None);
+    }
+
+    fn handle_event(
+        &mut self,
+        data: StateData<'_, GameData<'_, '_>>,
+        event: StateEvent,
+    ) -> SimpleTrans {
+        let StateData { world, .. } = data;
+        if let StateEvent::Window(event) = &event {
+            if is_close_requested(&event) || is_key_down(&event, VirtualKeyCode::Escape) {
+                return Trans::Quit;
+            }
+            match get_key(&event) {
+                Some((VirtualKeyCode::T, ElementState::Pressed)) => {
+                    stop_animation(world, self.player_entity, self.current_animation);
+                    start_animation(world, self.player_entity, 1, 1., None);
+                    self.current_animation = 1;
+                }
+
+                Some((VirtualKeyCode::R, ElementState::Pressed)) => {
+                    stop_animation(world, self.player_entity, self.current_animation);
+                    start_animation(world, self.player_entity, 2, 8., None);
+                    self.current_animation = 2;
+                }
+
+                _ => {}
+            };
+        }
+        Trans::None
     }
 }
 

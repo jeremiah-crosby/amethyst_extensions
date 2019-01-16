@@ -52,6 +52,37 @@ Prefab (
                             width: 26,
                             height: 43
                         ),
+
+                        // Run
+                        (
+                            name: run_0,
+                            x: 25,
+                            y: 0,
+                            width: 32,
+                            height: 44
+                        ),
+                        (
+                            name: run_1,
+                            x: 22,
+                            y: 47,
+                            width: 30,
+                            height: 43
+                        ),
+                        (
+                            name: run_2,
+                            x: 0,
+                            y: 94,
+                            width: 37,
+                            height: 43
+                        ),
+                        (
+                            name: run_3,
+                            x: 65,
+                            y: 94,
+                            width: 38,
+                            height: 42
+                        ),
+
                     ],
                 ),
                 animations: [
@@ -59,7 +90,12 @@ Prefab (
                         id: 1,
                         frame_count: 7,
                         indices: [0, 1, 2, 3, 4, 5, 6],
-                    )
+                    ),
+                     SpriteIndex(
+                        id: 2,
+                        frame_count: 4,
+                        indices: [7, 8, 9, 10],
+                    ),
                 ],
             ),
         ),
