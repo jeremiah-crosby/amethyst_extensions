@@ -1,6 +1,6 @@
 use amethyst::animation::{
-    Animation, AnimationSet, InterpolationFunction, Sampler, SpriteRenderChannel,
-    SpriteRenderPrimitive,
+    Animation, AnimationPrefab, AnimationSampling, AnimationSet, InterpolationFunction, Sampler,
+    SpriteRenderChannel, SpriteRenderPrimitive,
 };
 use amethyst::assets::{
     AssetStorage, Handle, Loader, PrefabData, PrefabError, ProgressCounter, Source,
@@ -12,6 +12,8 @@ use amethyst::renderer::{
     PngFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetFormat, SpriteSheetHandle, Texture,
     TextureMetadata,
 };
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::fmt::Debug;
 
 /// Structure acting as scaffolding for serde when loading a spritesheet file.
 /// Positions originate in the top-left corner (bitmap image convention).
@@ -41,20 +43,34 @@ pub struct SerializedSpriteSheet {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SpriteAnimationData {
+pub enum SpriteAnimationData<T>
+where
+    T: AnimationSampling,
+    T::Channel: for<'b> Deserialize<'b> + Serialize,
+    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
+{
     SpriteIndex {
         id: u64,
         frame_count: u16,
         indices: Vec<usize>,
     },
+    Other {
+        id: u64,
+        animation_prefab: AnimationPrefab<T>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AnimatedSpritePrefab {
+pub struct AnimatedSpritePrefab<T>
+where
+    T: AnimationSampling,
+    T::Channel: for<'b> Deserialize<'b> + Serialize,
+    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
+{
     pub id: u64,
     pub spritesheet_png_path: String,
     pub sprite_positions: SerializedSpriteSheet,
-    pub animations: Vec<SpriteAnimationData>,
+    pub animations: Vec<SpriteAnimationData<T>>,
 
     #[serde(skip, default = "default_spritesheet_handle")]
     spritesheet_handle: Option<SpriteSheetHandle>,
@@ -71,7 +87,12 @@ fn default_animation_handle() -> Vec<(u64, Handle<Animation<SpriteRender>>)> {
     Vec::new()
 }
 
-impl AnimatedSpritePrefab {
+impl<T> AnimatedSpritePrefab<T>
+where
+    T: AnimationSampling,
+    T::Channel: for<'b> Deserialize<'b> + Serialize,
+    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
+{
     fn load_sprite_sheet(
         &mut self,
         loader: &Loader,
@@ -138,12 +159,22 @@ impl AnimatedSpritePrefab {
                     let animation_handle = loader.load_from_data(animation, (), animation_store);
                     self.animation_handles.push((*id, animation_handle));
                 }
+
+                SpriteAnimationData::Other {
+                    id,
+                    animation_prefab,
+                } => {}
             };
         }
     }
 }
 
-impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
+impl<'a, T> PrefabData<'a> for AnimatedSpritePrefab<T>
+where
+    T: AnimationSampling,
+    T::Channel: for<'b> Deserialize<'b> + Serialize,
+    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
+{
     type SystemData = (
         ReadExpect<'a, Loader>,
         Read<'a, AssetStorage<SpriteSheet>>,
@@ -152,7 +183,9 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
         WriteStorage<'a, Transform>,
         Read<'a, AssetStorage<Sampler<SpriteRenderPrimitive>>>,
         Read<'a, AssetStorage<Animation<SpriteRender>>>,
+        WriteStorage<'a, AnimationSet<u64, T>>,
         WriteStorage<'a, AnimationSet<u64, SpriteRender>>,
+        <AnimationPrefab<T> as PrefabData<'a>>::SystemData,
     );
 
     type Result = ();
@@ -169,6 +202,8 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
             ref sampler_store,
             ref animation_store,
             ref mut animation_set_store,
+            ref mut sprite_render_animation_set_store,
+            ref mut animation_prefab_system_data,
         ): &mut Self::SystemData,
         entities: &[Entity],
     ) -> Result<(), PrefabError> {
@@ -183,12 +218,36 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
         };
         sprite_render_store.insert(entity, sprite);
 
+        let sprite_render_animation_set = sprite_render_animation_set_store
+            .entry(entity)
+            .unwrap()
+            .or_insert_with(AnimationSet::default);
+
         for animation_handle in &self.animation_handles {
-            let animation_set = animation_set_store
-                .entry(entity)
-                .unwrap()
-                .or_insert_with(AnimationSet::default);
-            animation_set.insert(animation_handle.0.clone(), animation_handle.1.clone());
+            sprite_render_animation_set
+                .insert(animation_handle.0.clone(), animation_handle.1.clone());
+        }
+
+        let animation_set = animation_set_store
+            .entry(entity)
+            .unwrap()
+            .or_insert_with(AnimationSet::default);
+
+        for animation in &self.animations {
+            if let SpriteAnimationData::Other {
+                id,
+                animation_prefab,
+            } = animation
+            {
+                animation_set.insert(
+                    id.clone(),
+                    animation_prefab.add_to_entity(
+                        entity,
+                        animation_prefab_system_data,
+                        entities,
+                    )?,
+                );
+            }
         }
         Ok(())
     }
@@ -205,6 +264,8 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
             ref sampler_store,
             ref animation_store,
             ref mut animation_set_store,
+            ref mut sprite_render_animation_set_store,
+            ref mut animation_prefab_system_data,
         ): &mut Self::SystemData,
     ) -> Result<bool, PrefabError> {
         self.load_sprite_sheet(loader, sprite_sheet_store, texture_store);

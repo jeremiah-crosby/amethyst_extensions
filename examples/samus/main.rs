@@ -33,9 +33,11 @@ fn init_camera(world: &mut World, parent: Entity) {
 }
 
 fn init_player(world: &mut World, progress: &mut ProgressCounter) -> Entity {
-    let prefab_handle = world.exec(|loader: PrefabLoader<'_, AnimatedSpritePrefab>| {
-        loader.load("samus.ron", RonFormat, (), progress)
-    });
+    let prefab_handle = world.exec(
+        |loader: PrefabLoader<'_, AnimatedSpritePrefab<Transform>>| {
+            loader.load("samus.ron", RonFormat, (), progress)
+        },
+    );
     world.create_entity().with(prefab_handle).build()
 }
 
@@ -161,7 +163,7 @@ fn main() -> amethyst::Result<()> {
 
     let game_data = GameDataBuilder::default()
         .with(
-            PrefabLoaderSystem::<AnimatedSpritePrefab>::default(),
+            PrefabLoaderSystem::<AnimatedSpritePrefab<Transform>>::default(),
             "",
             &[],
         )
