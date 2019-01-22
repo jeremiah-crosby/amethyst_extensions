@@ -43,34 +43,24 @@ pub struct SerializedSpriteSheet {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SpriteAnimationData<T>
-where
-    T: AnimationSampling,
-    T::Channel: for<'b> Deserialize<'b> + Serialize,
-    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
-{
+pub enum SpriteAnimationData {
     SpriteIndex {
         id: u64,
         frame_count: u16,
         indices: Vec<usize>,
     },
-    Other {
+    Transform {
         id: u64,
-        animation_prefab: AnimationPrefab<T>,
+        animation_prefab: AnimationPrefab<Transform>,
     },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AnimatedSpritePrefab<T>
-where
-    T: AnimationSampling,
-    T::Channel: for<'b> Deserialize<'b> + Serialize,
-    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
-{
+pub struct AnimatedSpritePrefab {
     pub id: u64,
     pub spritesheet_png_path: String,
     pub sprite_positions: SerializedSpriteSheet,
-    pub animations: Vec<SpriteAnimationData<T>>,
+    pub animations: Vec<SpriteAnimationData>,
 
     #[serde(skip, default = "default_spritesheet_handle")]
     spritesheet_handle: Option<SpriteSheetHandle>,
@@ -87,12 +77,7 @@ fn default_animation_handle() -> Vec<(u64, Handle<Animation<SpriteRender>>)> {
     Vec::new()
 }
 
-impl<T> AnimatedSpritePrefab<T>
-where
-    T: AnimationSampling,
-    T::Channel: for<'b> Deserialize<'b> + Serialize,
-    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
-{
+impl AnimatedSpritePrefab {
     fn load_sprite_sheet(
         &mut self,
         loader: &Loader,
@@ -160,7 +145,7 @@ where
                     self.animation_handles.push((*id, animation_handle));
                 }
 
-                SpriteAnimationData::Other {
+                SpriteAnimationData::Transform {
                     id,
                     animation_prefab,
                 } => {}
@@ -169,12 +154,7 @@ where
     }
 }
 
-impl<'a, T> PrefabData<'a> for AnimatedSpritePrefab<T>
-where
-    T: AnimationSampling,
-    T::Channel: for<'b> Deserialize<'b> + Serialize,
-    T::Primitive: Debug + for<'b> Deserialize<'b> + Serialize,
-{
+impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
     type SystemData = (
         ReadExpect<'a, Loader>,
         Read<'a, AssetStorage<SpriteSheet>>,
@@ -183,9 +163,9 @@ where
         WriteStorage<'a, Transform>,
         Read<'a, AssetStorage<Sampler<SpriteRenderPrimitive>>>,
         Read<'a, AssetStorage<Animation<SpriteRender>>>,
-        WriteStorage<'a, AnimationSet<u64, T>>,
+        WriteStorage<'a, AnimationSet<u64, Transform>>,
         WriteStorage<'a, AnimationSet<u64, SpriteRender>>,
-        <AnimationPrefab<T> as PrefabData<'a>>::SystemData,
+        <AnimationPrefab<Transform> as PrefabData<'a>>::SystemData,
     );
 
     type Result = ();
@@ -203,7 +183,7 @@ where
             ref animation_store,
             ref mut animation_set_store,
             ref mut sprite_render_animation_set_store,
-            ref mut animation_prefab_system_data,
+            ref mut transform_animation_prefab_system_data,
         ): &mut Self::SystemData,
         entities: &[Entity],
     ) -> Result<(), PrefabError> {
@@ -234,7 +214,7 @@ where
             .or_insert_with(AnimationSet::default);
 
         for animation in &self.animations {
-            if let SpriteAnimationData::Other {
+            if let SpriteAnimationData::Transform {
                 id,
                 animation_prefab,
             } = animation
@@ -243,7 +223,7 @@ where
                     id.clone(),
                     animation_prefab.add_to_entity(
                         entity,
-                        animation_prefab_system_data,
+                        transform_animation_prefab_system_data,
                         entities,
                     )?,
                 );
@@ -265,7 +245,7 @@ where
             ref animation_store,
             ref mut animation_set_store,
             ref mut sprite_render_animation_set_store,
-            ref mut animation_prefab_system_data,
+            ref mut transform_animation_prefab_system_data,
         ): &mut Self::SystemData,
     ) -> Result<bool, PrefabError> {
         self.load_sprite_sheet(loader, sprite_sheet_store, texture_store);
