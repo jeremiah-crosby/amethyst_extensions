@@ -27,7 +27,6 @@ fn init_camera(world: &mut World, parent: Entity) {
         .with(Camera::from(Projection::orthographic(
             -250.0, 250.0, -250.0, 250.0,
         )))
-        .with(Parent { entity: parent })
         .with(transform)
         .build();
 }
@@ -39,21 +38,23 @@ fn init_player(world: &mut World, progress: &mut ProgressCounter) -> Entity {
     world.create_entity().with(prefab_handle).build()
 }
 
-fn start_animation(
+fn start_animation<T>(
     world: &mut World,
     entity: Entity,
     id: u64,
     rate: f32,
     defer: Option<(u64, DeferStartRelation)>,
-) {
+) where
+    T: AnimationSampling,
+{
     let existing_animation = world
-        .read_storage::<AnimationSet<u64, SpriteRender>>()
+        .read_storage::<AnimationSet<u64, T>>()
         .get(entity)
         .and_then(|s| s.get(&id))
         .cloned()
         .unwrap();
     let mut sets = world.write_storage();
-    let control_set = get_animation_set::<u64, SpriteRender>(&mut sets, entity).unwrap();
+    let control_set = get_animation_set::<u64, T>(&mut sets, entity).unwrap();
     control_set.add_animation(
         id,
         &existing_animation,
@@ -63,9 +64,12 @@ fn start_animation(
     );
 }
 
-fn stop_animation(world: &mut World, entity: Entity, id: u64) {
+fn stop_animation<T>(world: &mut World, entity: Entity, id: u64)
+where
+    T: AnimationSampling,
+{
     let mut sets = world.write_storage();
-    let control_set = get_animation_set::<u64, SpriteRender>(&mut sets, entity).unwrap();
+    let control_set = get_animation_set::<u64, T>(&mut sets, entity).unwrap();
     control_set.abort(id);
 }
 
@@ -111,7 +115,7 @@ struct Example {
 impl SimpleState for Example {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
         let world = data.world;
-        start_animation(world, self.player_entity, 1, 1., None);
+        start_animation::<SpriteRender>(world, self.player_entity, 1, 1., None);
     }
 
     fn handle_event(
@@ -126,15 +130,32 @@ impl SimpleState for Example {
             }
             match get_key(&event) {
                 Some((VirtualKeyCode::T, ElementState::Pressed)) => {
-                    stop_animation(world, self.player_entity, self.current_animation);
-                    start_animation(world, self.player_entity, 1, 1., None);
+                    stop_animation::<SpriteRender>(
+                        world,
+                        self.player_entity,
+                        self.current_animation,
+                    );
+                    start_animation::<SpriteRender>(world, self.player_entity, 1, 1., None);
                     self.current_animation = 1;
                 }
 
                 Some((VirtualKeyCode::R, ElementState::Pressed)) => {
-                    stop_animation(world, self.player_entity, self.current_animation);
-                    start_animation(world, self.player_entity, 2, 8., None);
+                    stop_animation::<SpriteRender>(
+                        world,
+                        self.player_entity,
+                        self.current_animation,
+                    );
+                    start_animation::<SpriteRender>(world, self.player_entity, 2, 8., None);
                     self.current_animation = 2;
+                }
+
+                Some((VirtualKeyCode::M, ElementState::Pressed)) => {
+                    stop_animation::<SpriteRender>(
+                        world,
+                        self.player_entity,
+                        self.current_animation,
+                    );
+                    start_animation::<Transform>(world, self.player_entity, 3, 1., None);
                 }
 
                 _ => {}
@@ -165,11 +186,15 @@ fn main() -> amethyst::Result<()> {
             "",
             &[],
         )
-        .with_bundle(TransformBundle::new())?
         .with_bundle(AnimationBundle::<u64, SpriteRender>::new(
             "animation_control_system",
             "sampler_interpolation_system",
         ))?
+        .with_bundle(AnimationBundle::<u64, Transform>::new(
+            "transform_animation_control_system",
+            "transform_sampler_interpolation_system",
+        ))?
+        .with_bundle(TransformBundle::new().with_dep(&["transform_sampler_interpolation_system"]))?
         .with_bundle(
             RenderBundle::new(pipe, Some(config))
                 .with_sprite_sheet_processor()

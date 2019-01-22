@@ -117,10 +117,12 @@ impl AnimatedSpritePrefab {
     fn load_animations(
         &mut self,
         loader: &Loader,
+        _progress: &mut ProgressCounter,
         sampler_store: &AssetStorage<Sampler<SpriteRenderPrimitive>>,
         animation_store: &AssetStorage<Animation<SpriteRender>>,
-    ) {
-        for animation_data in &self.animations {
+        transform_animation_prefab_system_data: &mut <AnimationPrefab<Transform> as PrefabData>::SystemData,
+    ) -> Result<bool, PrefabError> {
+        for animation_data in self.animations.iter_mut() {
             match animation_data {
                 SpriteAnimationData::SpriteIndex {
                     id,
@@ -129,7 +131,7 @@ impl AnimatedSpritePrefab {
                 } => {
                     // Sampler
                     let sampler = Sampler {
-                        input: (0..frame_count + 1).map(f32::from).collect(),
+                        input: (0..*frame_count + 1).map(f32::from).collect(),
                         output: indices
                             .iter()
                             .map(|i| SpriteRenderPrimitive::SpriteIndex(i.clone()))
@@ -148,9 +150,13 @@ impl AnimatedSpritePrefab {
                 SpriteAnimationData::Transform {
                     id,
                     animation_prefab,
-                } => {}
+                } => {
+                    animation_prefab
+                        .load_sub_assets(&mut *_progress, transform_animation_prefab_system_data)?;
+                }
             };
         }
+        Ok(true)
     }
 }
 
@@ -190,13 +196,13 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
         let mut transform = Transform::default();
         transform.set_x(0.0);
         transform.set_y(0.0);
-        transform_store.insert(entity, transform);
+        transform_store.insert(entity, transform)?;
 
         let sprite = SpriteRender {
             sprite_sheet: self.spritesheet_handle.as_ref().cloned().unwrap(),
             sprite_number: 1,
         };
-        sprite_render_store.insert(entity, sprite);
+        sprite_render_store.insert(entity, sprite)?;
 
         let sprite_render_animation_set = sprite_render_animation_set_store
             .entry(entity)
@@ -249,7 +255,13 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
         ): &mut Self::SystemData,
     ) -> Result<bool, PrefabError> {
         self.load_sprite_sheet(loader, sprite_sheet_store, texture_store);
-        self.load_animations(loader, sampler_store, animation_store);
-        Ok(true)
+        self.load_animations(
+            loader,
+            _progress,
+            sampler_store,
+            animation_store,
+            transform_animation_prefab_system_data,
+        )?;
+        Ok(false)
     }
 }

@@ -96,6 +96,25 @@ Prefab (
                         frame_count: 4,
                         indices: [7, 8, 9, 10],
                     ),
+                    Transform(
+                        id: 3,
+                        animation_prefab: (
+                            // each sampler consist of:
+                            //   * target entity (which is an index in this prefab),
+                            //   * animation channel, here the attribute on Transform
+                            //   * interpolation data and function
+                            samplers: [(0, Translation, (
+                                input: [0., 1., 2., 3., 4.],
+                                output: [
+                                    Vec3((0., 0., 0.)),
+                                    Vec3((20., 0., 0.)),
+                                    Vec3((0., 0., 0.)),
+                                    Vec3((-20., 0., 0.)),
+                                    Vec3((0., 0., 0.)),
+                                ],
+                                function: Linear,
+                            ))],
+                    )),
                 ],
             ),
         ),
