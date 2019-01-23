@@ -48,7 +48,6 @@ pub struct SerializedSpriteSheet {
 pub enum SpriteAnimationData {
     SpriteIndex {
         id: u64,
-        frame_count: u16,
         indices: Vec<usize>,
     },
     Transform {
@@ -126,14 +125,10 @@ impl AnimatedSpritePrefab {
     ) -> Result<bool, PrefabError> {
         for animation_data in self.animations.iter_mut() {
             match animation_data {
-                SpriteAnimationData::SpriteIndex {
-                    id,
-                    frame_count,
-                    indices,
-                } => {
+                SpriteAnimationData::SpriteIndex { id, indices } => {
                     // Sampler
                     let sampler = Sampler {
-                        input: (0..*frame_count + 1).map(f32::from).collect(),
+                        input: (0..=indices.len()).map(|i| i as f32).collect(),
                         output: indices
                             .iter()
                             .map(|i| SpriteRenderPrimitive::SpriteIndex(i.clone()))
