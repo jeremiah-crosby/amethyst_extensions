@@ -19,6 +19,8 @@ use std::fmt::Debug;
 /// Positions originate in the top-left corner (bitmap image convention).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SpritePosition {
+    /// Unique name of sprite
+    pub name: String,
     /// Horizontal position of the sprite in the sprite sheet
     pub x: u32,
     /// Vertical position of the sprite in the sprite sheet

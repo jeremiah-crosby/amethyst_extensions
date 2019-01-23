@@ -11,42 +11,49 @@ Prefab (
                     sprites: [
                         // Turn
                         (
+                            name: "turn_0",
                             x: 38,
                             y: 94,
                             width: 26,
                             height: 43
                         ),
                         (
+                            name: "turn_1",
                             x: 58,
                             y: 0,
                             width: 23,
                             height: 46
                         ),
                         (
+                            name: "turn_2",
                             x: 0,
                             y: 47,
                             width: 21,
                             height: 46
                         ),
                         (
+                            name: "turn_3",
                             x: 0,
                             y: 0,
                             width: 24,
                             height: 46
                         ),
                         (
+                            name: "turn_4",
                             x: 82,
                             y: 47,
                             width: 20,
                             height: 46
                         ),
                         (
+                            name: "turn_5",
                             x: 82,
                             y: 0,
                             width: 21,
                             height: 46
                         ),
                         (
+                            name: "turn_6",
                             x: 53,
                             y: 47,
                             width: 26,
@@ -55,28 +62,28 @@ Prefab (
 
                         // Run
                         (
-                            name: run_0,
+                            name: "un_0",
                             x: 25,
                             y: 0,
                             width: 32,
                             height: 44
                         ),
                         (
-                            name: run_1,
+                            name: "run_1",
                             x: 22,
                             y: 47,
                             width: 30,
                             height: 43
                         ),
                         (
-                            name: run_2,
+                            name: "run_2",
                             x: 0,
                             y: 94,
                             width: 37,
                             height: 43
                         ),
                         (
-                            name: run_3,
+                            name: "run_3",
                             x: 65,
                             y: 94,
                             width: 38,
