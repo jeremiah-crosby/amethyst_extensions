@@ -62,7 +62,7 @@ Prefab (
 
                         // Run
                         (
-                            name: "un_0",
+                            name: "run_0",
                             x: 25,
                             y: 0,
                             width: 32,
@@ -95,11 +95,11 @@ Prefab (
                 animations: [
                     SpriteIndex(
                         id: 1,
-                        indices: [0, 1, 2, 3, 4, 5, 6],
+                        frames: ["turn_0", "turn_1", "turn_2", "turn_3", "turn_4", "turn_5", "turn_6"],
                     ),
                      SpriteIndex(
                         id: 2,
-                        indices: [7, 8, 9, 10],
+                        frames: ["run_0", "run_1", "run_2", "run_3"],
                     ),
                     Transform(
                         id: 3,

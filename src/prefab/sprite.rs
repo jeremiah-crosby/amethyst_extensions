@@ -48,7 +48,7 @@ pub struct SerializedSpriteSheet {
 pub enum SpriteAnimationData {
     SpriteIndex {
         id: u64,
-        indices: Vec<usize>,
+        frames: Vec<String>,
     },
     Transform {
         id: u64,
@@ -123,15 +123,25 @@ impl AnimatedSpritePrefab {
         animation_store: &AssetStorage<Animation<SpriteRender>>,
         transform_animation_prefab_system_data: &mut <AnimationPrefab<Transform> as PrefabData>::SystemData,
     ) -> Result<bool, PrefabError> {
+        let sprite_positions = self.sprite_positions.clone();
         for animation_data in self.animations.iter_mut() {
             match animation_data {
-                SpriteAnimationData::SpriteIndex { id, indices } => {
+                SpriteAnimationData::SpriteIndex { id, frames } => {
                     // Sampler
                     let sampler = Sampler {
-                        input: (0..=indices.len()).map(|i| i as f32).collect(),
-                        output: indices
+                        input: (0..=frames.len()).map(|i| i as f32).collect(),
+                        output: frames
                             .iter()
-                            .map(|i| SpriteRenderPrimitive::SpriteIndex(i.clone()))
+                            .map(|frame| {
+                                let sprite_index = sprite_positions
+                                    .sprites
+                                    .iter()
+                                    .enumerate()
+                                    .filter(|(_, p)| p.name == *frame)
+                                    .last()
+                                    .unwrap();
+                                SpriteRenderPrimitive::SpriteIndex(sprite_index.0)
+                            })
                             .collect(),
                         function: InterpolationFunction::Step,
                     };
