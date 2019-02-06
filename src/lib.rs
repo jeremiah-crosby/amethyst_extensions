@@ -3,3 +3,4 @@ extern crate amethyst;
 extern crate serde;
 
 pub mod prefab;
+pub mod tilemap;
