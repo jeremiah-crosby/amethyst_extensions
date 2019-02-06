@@ -8,3 +8,6 @@ edition = "2018"
 amethyst = { git = "https://github.com/amethyst/amethyst" }
 serde = "1.0"
 serde_derive = "1.0"
+genmesh = "0.4"
+derivative = "1.0"
+tiled = "0.7.2"
