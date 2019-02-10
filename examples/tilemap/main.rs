@@ -1,10 +1,8 @@
 extern crate amethyst;
+extern crate amethyst_extensions;
+extern crate derivative;
 extern crate genmesh;
 extern crate tiled;
-//extern crate gfx;
-#[macro_use]
-extern crate derivative;
-extern crate amethyst_extensions;
 
 use amethyst::core::{Transform, TransformBundle};
 use amethyst::prelude::*;
@@ -12,7 +10,6 @@ use amethyst::renderer::{
     Camera, DisplayConfig, Pipeline, PosTex, Projection, RenderBundle, Stage,
 };
 use amethyst::utils::application_root_dir;
-use amethyst::winit::{Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 use amethyst_extensions::tilemap::*;
 
@@ -38,7 +35,7 @@ impl SimpleState for PlayState {
 
     fn handle_event(
         &mut self,
-        data: StateData<'_, GameData<'_, '_>>,
+        _data: StateData<'_, GameData<'_, '_>>,
         event: StateEvent,
     ) -> SimpleTrans {
         match event {

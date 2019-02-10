@@ -1,25 +1,23 @@
 extern crate amethyst;
-#[macro_use]
-extern crate serde;
 extern crate amethyst_extensions;
+extern crate serde;
 
 use amethyst::{
     animation::*,
-    assets::{AssetStorage, Loader, PrefabLoader, PrefabLoaderSystem, ProgressCounter, RonFormat},
-    core::{Parent, Transform, TransformBundle},
+    assets::{PrefabLoader, PrefabLoaderSystem, ProgressCounter, RonFormat},
+    core::{Transform, TransformBundle},
     ecs::Entity,
     input::{get_key, is_close_requested, is_key_down},
     prelude::*,
     renderer::{
-        Camera, ColorMask, DepthMode, DisplayConfig, DrawFlat2D, ElementState, Pipeline, PngFormat,
-        PosNormTex, Projection, RenderBundle, SpriteRender, SpriteSheet, SpriteSheetFormat,
-        SpriteSheetHandle, Stage, Texture, TextureMetadata, VirtualKeyCode, ALPHA,
+        Camera, ColorMask, DepthMode, DisplayConfig, DrawFlat2D, ElementState, Pipeline,
+        Projection, RenderBundle, SpriteRender, Stage, VirtualKeyCode, ALPHA,
     },
     utils::application_root_dir,
 };
 use amethyst_extensions::prefab::sprite::*;
 
-fn init_camera(world: &mut World, parent: Entity) {
+fn init_camera(world: &mut World, _parent: Entity) {
     let mut transform = Transform::default();
     transform.set_z(1.0);
     world
@@ -43,7 +41,7 @@ fn start_animation<T>(
     entity: Entity,
     id: u64,
     rate: f32,
-    defer: Option<(u64, DeferStartRelation)>,
+    _defer: Option<(u64, DeferStartRelation)>,
 ) where
     T: AnimationSampling,
 {
