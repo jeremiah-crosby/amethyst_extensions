@@ -17,11 +17,12 @@ use amethyst::renderer::{
 };
 
 use amethyst::renderer::pipe::pass::{Pass, PassData};
-use amethyst::renderer::pipe::{DepthMode, Effect, NewEffect};
+use amethyst::renderer::pipe::{Effect, NewEffect};
 
-use gfx::pso::buffer::ElemStride;
+use gfx::{preset::blend::ALPHA, pso::buffer::ElemStride};
+use gfx_core::state::ColorMask;
 
-use super::{TilemapDimensions, TilemapTiles, TilesheetDimensions};
+use super::{TilemapDimensions, TilemapLayer, TilesheetDimensions};
 
 const TILEMAP_VERT_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_v.glsl");
 const TILEMAP_FRAG_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_f.glsl");
@@ -52,6 +53,7 @@ struct TileMapBuffer {
 #[derivative(Default(bound = "V: Query<(Position, TexCoord)>, Self: Pass"))]
 pub struct DrawTilemap<V> {
     _pd: PhantomData<V>,
+    layer_name: String,
 }
 
 impl<V> DrawTilemap<V>
@@ -59,9 +61,11 @@ where
     V: Query<(Position, TexCoord)>,
     Self: Pass,
 {
-    /// Create instance of `DrawFlat` pass
-    pub fn new() -> Self {
-        Default::default()
+    /// Create instance of `DrawTilemap` pass
+    pub fn new(layer_name: &str) -> Self {
+        let mut ret: DrawTilemap<V> = Default::default();
+        ret.layer_name = String::from(layer_name);
+        ret
     }
 }
 
@@ -80,7 +84,7 @@ where
         ReadStorage<'a, GlobalTransform>,
         ReadStorage<'a, TilemapDimensions>,
         ReadStorage<'a, TilesheetDimensions>,
-        ReadStorage<'a, TilemapTiles>,
+        ReadStorage<'a, TilemapLayer>,
     );
 }
 
@@ -97,7 +101,7 @@ where
             .with_raw_constant_buffer("TileMapBuffer", mem::size_of::<TileMapBuffer>(), 1)
             .with_raw_constant_buffer("FragmentArgs", mem::size_of::<FragmentArgs>(), 1)
             .with_texture("TilesheetTexture")
-            .with_output("Color", Some(DepthMode::LessEqualWrite))
+            .with_blended_output("Color", ColorMask::all(), ALPHA, None)
             .build()
     }
 
@@ -117,7 +121,7 @@ where
             global,
             tilemap_dimensions,
             tilesheet_dimensions,
-            tile_data,
+            tile_layer,
         ): (
             Option<Read<'a, ActiveCamera>>,
             ReadStorage<'a, Camera>,
@@ -129,7 +133,7 @@ where
             ReadStorage<'b, GlobalTransform>,
             ReadStorage<'b, TilemapDimensions>,
             ReadStorage<'b, TilesheetDimensions>,
-            ReadStorage<'b, TilemapTiles>,
+            ReadStorage<'b, TilemapLayer>,
         ),
     ) {
         let camera: Option<(&Camera, &GlobalTransform)> = active
@@ -144,16 +148,20 @@ where
         let tex_storage = &tex_storage;
         let material_defaults = &material_defaults;
 
-        for (mesh, material, global, tilemap_dimensions, tilesheet_dimensions, tile_data) in (
+        for (mesh, material, global, tilemap_dimensions, tilesheet_dimensions, tile_layer) in (
             &mesh,
             &material,
             &global,
             &tilemap_dimensions,
             &tilesheet_dimensions,
-            &tile_data,
+            &tile_layer,
         )
             .join()
         {
+            if tile_layer.name != self.layer_name {
+                continue;
+            }
+
             let mesh = match mesh_storage.get(mesh) {
                 Some(mesh) => mesh,
                 None => continue,
@@ -222,7 +230,7 @@ where
                 .into(),
             };
             //debug!("Updating TileMapBuffer");
-            effect.update_buffer("TileMapBuffer", &tile_data.tiles[..], encoder);
+            effect.update_buffer("TileMapBuffer", &tile_layer.tiles[..], encoder);
 
             //debug!("Updating FragmentArgs");
             effect.update_constant_buffer("FragmentArgs", &fragment_args.std140(), encoder);

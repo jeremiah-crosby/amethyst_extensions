@@ -61,58 +61,62 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
         height: tileset_height,
     };
 
-    let tiles = TilemapTiles {
-        tiles: generate_tile_data(&map, tileset_width, tileset_height),
-    };
-
-    let half_width: f32 = ((map.width * map.tile_width) / 2) as f32;
-    let half_height: f32 = ((map.height * map.tile_height) / 2) as f32;
-
-    let (mesh, material) = {
-        let loader = world.read_resource::<Loader>();
-
-        let mesh: Handle<Mesh> = loader.load_from_data(
-            generate_tilemap_plane(map.tile_width, map.width, map.height).into(),
-            (),
-            &world.read_resource(),
-        );
-
-        let mat_defaults = world.read_resource::<MaterialDefaults>();
-
-        let tex_storage = world.read_resource();
-
-        let mut tileset_path_buf = PathBuf::new();
-        tileset_path_buf.push(base_dir);
-        tileset_path_buf.push(image_source);
-        let tilemap_material = Material {
-            albedo: loader.load(
-                tileset_path_buf.to_str().unwrap(),
-                PngFormat,
-                TextureMetadata::srgb(),
-                (),
-                &tex_storage,
-            ),
-            ..mat_defaults.0.clone()
+    let layers = &map.layers;
+    for layer in layers {
+        let tilemap_layer = TilemapLayer {
+            name: String::from(layer.name.as_str()),
+            tiles: generate_tile_data(&layer, tileset_width, tileset_height),
         };
 
-        (mesh, tilemap_material)
-    };
+        let half_width: f32 = ((map.width * map.tile_width) / 2) as f32;
+        let half_height: f32 = ((map.height * map.tile_height) / 2) as f32;
 
-    let mut transform = Transform::default();
-    transform.set_x(half_width);
-    transform.set_y(half_height);
-    transform.set_z(0.0);
+        let (mesh, material) = {
+            let loader = world.read_resource::<Loader>();
 
-    world
-        .create_entity()
-        .with(mesh)
-        .with(material)
-        .with(transform)
-        .with(GlobalTransform::default())
-        .with(tilemap_dimensions)
-        .with(tilesheet_dimensions)
-        .with(tiles)
-        .build();
+            let mesh: Handle<Mesh> = loader.load_from_data(
+                generate_tilemap_plane(map.tile_width, map.width, map.height).into(),
+                (),
+                &world.read_resource(),
+            );
+
+            let mat_defaults = world.read_resource::<MaterialDefaults>();
+
+            let tex_storage = world.read_resource();
+
+            let mut tileset_path_buf = PathBuf::new();
+            tileset_path_buf.push(base_dir);
+            tileset_path_buf.push(image_source);
+            let tilemap_material = Material {
+                albedo: loader.load(
+                    tileset_path_buf.to_str().unwrap(),
+                    PngFormat,
+                    TextureMetadata::srgb(),
+                    (),
+                    &tex_storage,
+                ),
+                ..mat_defaults.0.clone()
+            };
+
+            (mesh, tilemap_material)
+        };
+
+        let mut transform = Transform::default();
+        transform.set_x(half_width);
+        transform.set_y(half_height);
+        transform.set_z(0.0);
+
+        world
+            .create_entity()
+            .with(mesh)
+            .with(material)
+            .with(transform)
+            .with(GlobalTransform::default())
+            .with(tilemap_dimensions.clone())
+            .with(tilesheet_dimensions.clone())
+            .with(tilemap_layer)
+            .build();
+    }
 }
 
 pub fn generate_tilemap_plane(
@@ -160,27 +164,25 @@ pub fn generate_tilemap_plane(
 }
 
 pub fn generate_tile_data(
-    map: &tiled::Map,
+    layer: &tiled::Layer,
     tileset_width: u32,
     tileset_height: u32,
 ) -> Vec<[f32; 4]> {
     let mut tiles = Vec::new();
-    let layers = &map.layers;
-    for layer in layers {
-        for rows in &layer.tiles {
-            for tile in rows {
-                if *tile != 0 {
-                    // subtract 1.0 from the x coordinate because the first gid of the tileset is 1
-                    // this could be made cleaner
-                    tiles.push([
-                        (*tile - 1) as f32 % tileset_width as f32,
-                        (tileset_height - 1) as f32 - (((*tile - 1) / tileset_width) as f32),
-                        0.0,
-                        0.0,
-                    ]);
-                } else {
-                    tiles.push([0.0, 0.0, 0.0, 0.0]);
-                }
+    for rows in &layer.tiles {
+        for tile in rows {
+            if *tile != 0 {
+                // subtract 1.0 from the x coordinate because the first gid of the tileset is 1
+                // this could be made cleaner
+                tiles.push([
+                    (*tile - 1) as f32 % tileset_width as f32,
+                    (tileset_height - 1) as f32 - (((*tile - 1) / tileset_width) as f32),
+                    0.0,
+                    0.0,
+                ]);
+            } else {
+                // There's no tile, so push a really big invalid row index so the shader will render transparency.
+                tiles.push([100000.0, 0.0, 0.0, 0.0]);
             }
         }
     }
@@ -208,10 +210,11 @@ impl Component for TilesheetDimensions {
 }
 
 #[derive(Clone)]
-pub struct TilemapTiles {
+pub struct TilemapLayer {
+    pub name: String,
     pub tiles: Vec<[f32; 4]>,
 }
 
-impl Component for TilemapTiles {
+impl Component for TilemapLayer {
     type Storage = DenseVecStorage<Self>;
 }

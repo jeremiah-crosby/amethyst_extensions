@@ -43,8 +43,8 @@ void main() {
         vec2 uvCoords = (entry.xy + rawUvOffsets) / u_TilesheetSize.xy;
         texData = texture(TilesheetTexture, uvCoords);
     } else {
-        // if we're here it means the buftilecoords are outside the buffer, so let's just show black
-        texData = vec4(0.0,0.0,0.0,1.0);
+        // if we're here it means the buftilecoords are outside the buffer, so let's just show transparent
+        texData = vec4(0.0,0.0,0.0,0.0);
     }
 
     Color = texData;

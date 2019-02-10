@@ -12,5 +12,6 @@ genmesh = "0.4"
 derivative = "1.0.2"
 tiled = "0.7.2"
 gfx = "0.17.1"
+gfx_core = { version = "0.8.3", features = ["serialize"] }
 glsl-layout = { version = "0.1.1", features = ["gfx"] }
 log = { version = "0.4.6", features = ["serde"] }

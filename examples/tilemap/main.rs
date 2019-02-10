@@ -20,7 +20,7 @@ impl SimpleState for PlayState {
         let world = data.world;
         world.register::<TilemapDimensions>();
         world.register::<TilesheetDimensions>();
-        world.register::<TilemapTiles>();
+        world.register::<TilemapLayer>();
         initialise_camera(world);
         initialise_tilemap(
             world,
@@ -67,7 +67,8 @@ fn run() -> Result<(), amethyst::Error> {
         Pipeline::build().with_stage(
             Stage::with_backbuffer()
                 .clear_target(BACKGROUND_COLOUR, 1.0)
-                .with_pass(DrawTilemap::<PosTex>::new()),
+                .with_pass(DrawTilemap::<PosTex>::new("Tile Layer 1"))
+                .with_pass(DrawTilemap::<PosTex>::new("Tile Layer 2")),
         )
     };
     let game_data = GameDataBuilder::default()
