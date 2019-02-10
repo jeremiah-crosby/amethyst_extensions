@@ -1,27 +1,34 @@
 use std::marker::PhantomData;
 
+use glsl_layout::*;
+
 use amethyst::assets::AssetStorage;
-use amethyst::core::cgmath::{Matrix4, One, SquareMatrix};
-use amethyst::core::transform::Transform;
+use amethyst::core::nalgebra::{Matrix4, SquareMatrix};
+use amethyst::core::transform::{GlobalTransform, Transform};
 
-use amethyst::ecs::{Fetch, Join, ReadStorage};
+use amethyst::ecs::ReadStorage;
 
-use amethyst::renderer::{ActiveCamera, Camera, Material, MaterialDefaults, Encoder, Factory, Texture,
-                         Position, Query, TexCoord, Mesh, MeshHandle};
+use amethyst::core::specs::prelude::{Join, Read, ReadExpect};
+
 use amethyst::renderer::error::Result;
+use amethyst::renderer::{
+    ActiveCamera, Camera, Encoder, Factory, Material, MaterialDefaults, Mesh, MeshHandle, Position,
+    Query, TexCoord, Texture,
+};
 
 use amethyst::renderer::pipe::pass::{Pass, PassData};
 use amethyst::renderer::pipe::{DepthMode, Effect, NewEffect};
 
 use gfx::pso::buffer::ElemStride;
 
-use super::{TilemapDimensions, TilesheetDimensions, TilemapTiles};
+use log::debug;
+
+use super::{TilemapDimensions, TilemapTiles, TilesheetDimensions};
 
 const TILEMAP_VERT_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_v.glsl");
 const TILEMAP_FRAG_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_f.glsl");
 
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Uniform)]
 struct VertexArgs {
     proj: [[f32; 4]; 4],
     view: [[f32; 4]; 4],
@@ -29,18 +36,17 @@ struct VertexArgs {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Uniform)]
 struct FragmentArgs {
     u_world_size: [f32; 4],
-    u_tilesheet_size: [f32; 4]
+    u_tilesheet_size: [f32; 4],
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct TileMapBuffer {
-    u_data: [[f32; 4]; 4096]
+    u_data: [[f32; 4]; 4096],
 }
-
 
 /// Draw mesh without lighting
 /// `V` is `VertexFormat`
@@ -66,14 +72,14 @@ where
     V: Query<(Position, TexCoord)>,
 {
     type Data = (
-        Option<Fetch<'a, ActiveCamera>>,
+        Option<Read<'a, ActiveCamera>>,
         ReadStorage<'a, Camera>,
-        Fetch<'a, AssetStorage<Mesh>>,
-        Fetch<'a, AssetStorage<Texture>>,
-        Fetch<'a, MaterialDefaults>,
+        Read<'a, AssetStorage<Mesh>>,
+        Read<'a, AssetStorage<Texture>>,
+        ReadExpect<'a, MaterialDefaults>,
         ReadStorage<'a, MeshHandle>,
         ReadStorage<'a, Material>,
-        ReadStorage<'a, Transform>,
+        ReadStorage<'a, GlobalTransform>,
         ReadStorage<'a, TilemapDimensions>,
         ReadStorage<'a, TilesheetDimensions>,
         ReadStorage<'a, TilemapTiles>,
@@ -84,7 +90,7 @@ impl<V> Pass for DrawTilemap<V>
 where
     V: Query<(Position, TexCoord)>,
 {
-    fn compile(&self, effect: NewEffect) -> Result<Effect> {
+    fn compile(&mut self, effect: NewEffect) -> Result<Effect> {
         use std::mem;
         effect
             .simple(TILEMAP_VERT_SRC, TILEMAP_FRAG_SRC)
@@ -102,24 +108,36 @@ where
         encoder: &mut Encoder,
         effect: &mut Effect,
         _factory: Factory,
-        (active, camera, mesh_storage, tex_storage, material_defaults, mesh, material, global, tilemap_dimensions, tilesheet_dimensions, tile_data): (
-            Option<Fetch<'a, ActiveCamera>>,
+        (
+            active,
+            camera,
+            mesh_storage,
+            tex_storage,
+            material_defaults,
+            mesh,
+            material,
+            global,
+            tilemap_dimensions,
+            tilesheet_dimensions,
+            tile_data,
+        ): (
+            Option<Read<'a, ActiveCamera>>,
             ReadStorage<'a, Camera>,
-            Fetch<'a, AssetStorage<Mesh>>,
-            Fetch<'a, AssetStorage<Texture>>,
-            Fetch<'a, MaterialDefaults>,
+            Read<'a, AssetStorage<Mesh>>,
+            Read<'a, AssetStorage<Texture>>,
+            ReadExpect<'a, MaterialDefaults>,
             ReadStorage<'b, MeshHandle>,
             ReadStorage<'b, Material>,
-            ReadStorage<'b, Transform>,
+            ReadStorage<'b, GlobalTransform>,
             ReadStorage<'b, TilemapDimensions>,
             ReadStorage<'b, TilesheetDimensions>,
             ReadStorage<'b, TilemapTiles>,
         ),
     ) {
-        let camera: Option<(&Camera, &Transform)> = active
+        let camera: Option<(&Camera, &GlobalTransform)> = active
             .and_then(|a| {
-                let cam = camera.get(a.entity);
-                let transform = global.get(a.entity);
+                let cam = camera.get(a.entity.unwrap());
+                let transform = global.get(a.entity.unwrap());
                 cam.into_iter().zip(transform.into_iter()).next()
             })
             .or_else(|| (&camera, &global).join().next());
@@ -128,7 +146,16 @@ where
         let tex_storage = &tex_storage;
         let material_defaults = &material_defaults;
 
-        for (mesh, material, global, tilemap_dimensions, tilesheet_dimensions, tile_data) in (&mesh, &material, &global, &tilemap_dimensions, &tilesheet_dimensions, &tile_data).join() {
+        for (mesh, material, global, tilemap_dimensions, tilesheet_dimensions, tile_data) in (
+            &mesh,
+            &material,
+            &global,
+            &tilemap_dimensions,
+            &tilesheet_dimensions,
+            &tile_data,
+        )
+            .join()
+        {
             let mesh = match mesh_storage.get(mesh) {
                 Some(mesh) => mesh,
                 None => continue,
@@ -140,39 +167,54 @@ where
 
             let vertex_args = camera
                 .as_ref()
-                .map(|&(ref cam, ref transform)| {
-                    VertexArgs {
-                        proj: cam.proj.into(),
-                        view: transform.0.invert()
-                            .unwrap_or_else(|| Matrix4::one())
-                            .into(),
-                        model: *global.as_ref(),
-                    }
+                .map(|&(ref cam, ref transform)| VertexArgs {
+                    proj: cam.proj.into(),
+                    view: transform
+                        .0
+                        .try_inverse()
+                        .unwrap_or_else(|| Matrix4::repeat(1.))
+                        .into(),
+                    model: global.0.into(),
                 })
-                .unwrap_or_else(||
-                    VertexArgs {
-                        proj: Matrix4::one().into(),
-                        view: Matrix4::one().into(),
-                        model: *global.as_ref(),
-                    }
-                );
+                .unwrap_or_else(|| VertexArgs {
+                    proj: Matrix4::repeat(1.).into(),
+                    view: Matrix4::repeat(1.).into(),
+                    model: global.0.into(),
+                });
 
             let option_tilesheet_texture = tex_storage
                 .get(&material.albedo)
                 .or_else(|| tex_storage.get(&material_defaults.0.albedo));
 
             if let Some(tilesheet_texture) = option_tilesheet_texture {
-                effect.update_constant_buffer("VertexArgs", &vertex_args, encoder);
+                //debug!("Updating VertexArgs");
+                effect.update_constant_buffer("VertexArgs", &vertex_args.std140(), encoder);
                 effect.data.textures.push(tilesheet_texture.view().clone());
-                effect.data.samplers.push(tilesheet_texture.sampler().clone());
+                effect
+                    .data
+                    .samplers
+                    .push(tilesheet_texture.sampler().clone());
             }
 
             let fragment_args = FragmentArgs {
-                u_world_size: [tilemap_dimensions.width as f32, tilemap_dimensions.height as f32, 0.0, 0.0],
-                u_tilesheet_size: [tilesheet_dimensions.width as f32, tilesheet_dimensions.height as f32, 0.0, 0.0]
+                u_world_size: [
+                    tilemap_dimensions.width as f32,
+                    tilemap_dimensions.height as f32,
+                    0.0,
+                    0.0,
+                ],
+                u_tilesheet_size: [
+                    tilesheet_dimensions.width as f32,
+                    tilesheet_dimensions.height as f32,
+                    0.0,
+                    0.0,
+                ],
             };
+            //debug!("Updating TileMapBuffer");
             effect.update_buffer("TileMapBuffer", &tile_data.tiles[..], encoder);
-            effect.update_constant_buffer("FragmentArgs", &fragment_args, encoder);
+
+            //debug!("Updating FragmentArgs");
+            effect.update_constant_buffer("FragmentArgs", &fragment_args.std140(), encoder);
 
             effect.data.vertex_bufs.push(vbuf);
 

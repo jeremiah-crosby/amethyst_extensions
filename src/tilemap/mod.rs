@@ -11,23 +11,33 @@ use genmesh::{Triangulate, Vertices};
 use amethyst::prelude::*;
 
 use std::fs::File;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tiled::parse;
 
-fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
+use log::{debug, error};
+
+pub use self::tilemap_pass::DrawTilemap;
+
+mod tilemap_pass;
+
+pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
+    let mut path_buf = PathBuf::new();
+    path_buf.push(base_dir);
+    path_buf.push(map_name);
+    debug!("Loading tilemap {}", path_buf.to_str().unwrap());
     use amethyst::assets::Handle;
     use amethyst::renderer::{Material, MaterialDefaults};
 
-    let map_file = match File::open(&Path::new(format!("{}{}", base_dir, map_name).as_str())) {
+    let map_file = match File::open(path_buf.as_path()) {
         Err(e) => {
-            eprintln!("Error opening .tmx file: {}", e);
+            error!("Error opening .tmx file: {}", e);
             return;
         }
         Ok(f) => f,
     };
     let map = match parse(map_file) {
         Err(e) => {
-            eprintln!("Error while parsing .tmx file: {}", e);
+            error!("Error while parsing .tmx file: {}", e);
             return;
         }
         Ok(m) => m,
@@ -73,9 +83,12 @@ fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
 
         let tex_storage = world.read_resource();
 
+        let mut tileset_path_buf = PathBuf::new();
+        tileset_path_buf.push(base_dir);
+        tileset_path_buf.push(image_source);
         let tilemap_material = Material {
             albedo: loader.load(
-                format!("{}{}", base_dir, image_source),
+                tileset_path_buf.to_str().unwrap(),
                 PngFormat,
                 TextureMetadata::srgb(),
                 (),
@@ -87,11 +100,16 @@ fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
         (mesh, tilemap_material)
     };
 
+    let mut transform = Transform::default();
+    transform.set_x(half_width);
+    transform.set_y(half_height);
+    transform.set_z(0.0);
+
     world
         .create_entity()
         .with(mesh)
         .with(material)
-        .with(Transform::default())
+        .with(transform)
         .with(tilemap_dimensions)
         .with(tilesheet_dimensions)
         .with(tiles)
