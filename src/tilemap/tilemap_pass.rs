@@ -21,8 +21,6 @@ use amethyst::renderer::pipe::{DepthMode, Effect, NewEffect};
 
 use gfx::pso::buffer::ElemStride;
 
-use log::debug;
-
 use super::{TilemapDimensions, TilemapTiles, TilesheetDimensions};
 
 const TILEMAP_VERT_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_v.glsl");

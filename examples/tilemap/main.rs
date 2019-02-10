@@ -53,7 +53,7 @@ fn initialise_camera(world: &mut World) {
     world
         .create_entity()
         .with(Camera::from(Projection::orthographic(
-            0.0, 500.0, 500.0, 0.0,
+            0.0, 500.0, 0.0, 500.0,
         )))
         .with(transform)
         .build();

@@ -1,6 +1,6 @@
 use amethyst::assets::Loader;
 use amethyst::core::nalgebra::{Vector2, Vector3};
-use amethyst::core::transform::Transform;
+use amethyst::core::{GlobalTransform, Transform};
 use amethyst::ecs::{Component, DenseVecStorage};
 use amethyst::prelude::*;
 use amethyst::renderer::PosTex;
@@ -110,6 +110,7 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
         .with(mesh)
         .with(material)
         .with(transform)
+        .with(GlobalTransform::default())
         .with(tilemap_dimensions)
         .with(tilesheet_dimensions)
         .with(tiles)
