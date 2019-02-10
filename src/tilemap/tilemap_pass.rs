@@ -30,16 +30,16 @@ const TILEMAP_FRAG_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_
 
 #[derive(Clone, Copy, Debug, Uniform)]
 struct VertexArgs {
-    proj: [[f32; 4]; 4],
-    view: [[f32; 4]; 4],
-    model: [[f32; 4]; 4],
+    proj: mat4,
+    view: mat4,
+    model: mat4,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Uniform)]
 struct FragmentArgs {
-    u_world_size: [f32; 4],
-    u_tilesheet_size: [f32; 4],
+    u_world_size: vec4,
+    u_tilesheet_size: vec4,
 }
 
 #[repr(C)]
@@ -167,19 +167,30 @@ where
 
             let vertex_args = camera
                 .as_ref()
-                .map(|&(ref cam, ref transform)| VertexArgs {
-                    proj: cam.proj.into(),
-                    view: transform
+                .map(|&(ref cam, ref transform)| {
+                    let proj: [[f32; 4]; 4] = cam.proj.into();
+                    let view: [[f32; 4]; 4] = transform
                         .0
                         .try_inverse()
                         .unwrap_or_else(|| Matrix4::repeat(1.))
-                        .into(),
-                    model: global.0.into(),
+                        .into();
+                    let model: [[f32; 4]; 4] = global.0.into();
+
+                    VertexArgs {
+                        proj: proj.into(),
+                        view: view.into(),
+                        model: model.into(),
+                    }
                 })
-                .unwrap_or_else(|| VertexArgs {
-                    proj: Matrix4::repeat(1.).into(),
-                    view: Matrix4::repeat(1.).into(),
-                    model: global.0.into(),
+                .unwrap_or_else(|| {
+                    let proj: [[f32; 4]; 4] = Matrix4::repeat(1.).into();
+                    let view: [[f32; 4]; 4] = Matrix4::repeat(1.).into();
+                    let model: [[f32; 4]; 4] = global.0.into();
+                    VertexArgs {
+                        proj: proj.into(),
+                        view: view.into(),
+                        model: model.into(),
+                    }
                 });
 
             let option_tilesheet_texture = tex_storage
@@ -202,13 +213,15 @@ where
                     tilemap_dimensions.height as f32,
                     0.0,
                     0.0,
-                ],
+                ]
+                .into(),
                 u_tilesheet_size: [
                     tilesheet_dimensions.width as f32,
                     tilesheet_dimensions.height as f32,
                     0.0,
                     0.0,
-                ],
+                ]
+                .into(),
             };
             //debug!("Updating TileMapBuffer");
             effect.update_buffer("TileMapBuffer", &tile_data.tiles[..], encoder);
