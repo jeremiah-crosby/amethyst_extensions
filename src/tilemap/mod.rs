@@ -4,14 +4,12 @@ use amethyst::core::{GlobalTransform, Transform};
 use amethyst::ecs::{Component, DenseVecStorage};
 use amethyst::prelude::*;
 use amethyst::renderer::PosTex;
-use amethyst::renderer::{Camera, Mesh, PngFormat, Projection, TextureMetadata};
+use amethyst::renderer::{Mesh, PngFormat, TextureMetadata};
 use genmesh::generators::{IndexedPolygon, Plane, SharedVertex};
 use genmesh::{Triangulate, Vertices};
 
-use amethyst::prelude::*;
-
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tiled::parse;
 
 use log::{debug, error};

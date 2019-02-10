@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use glsl_layout::*;
 
 use amethyst::assets::AssetStorage;
-use amethyst::core::nalgebra::{Matrix4, SquareMatrix};
-use amethyst::core::transform::{GlobalTransform, Transform};
+use amethyst::core::nalgebra::Matrix4;
+use amethyst::core::transform::GlobalTransform;
 
 use amethyst::ecs::ReadStorage;
 

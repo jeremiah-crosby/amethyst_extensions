@@ -1,19 +1,15 @@
 use amethyst::animation::{
-    Animation, AnimationPrefab, AnimationSampling, AnimationSet, InterpolationFunction, Sampler,
-    SpriteRenderChannel, SpriteRenderPrimitive,
+    Animation, AnimationPrefab, AnimationSet, InterpolationFunction, Sampler, SpriteRenderChannel,
+    SpriteRenderPrimitive,
 };
-use amethyst::assets::{
-    AssetStorage, Handle, Loader, PrefabData, PrefabError, ProgressCounter, Source,
-};
+use amethyst::assets::{AssetStorage, Handle, Loader, PrefabData, PrefabError, ProgressCounter};
 use amethyst::core::specs::prelude::Read;
 use amethyst::core::Transform;
 use amethyst::ecs::{Entity, ReadExpect, WriteStorage};
 use amethyst::renderer::{
-    PngFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetFormat, SpriteSheetHandle, Texture,
-    TextureMetadata,
+    PngFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetHandle, Texture, TextureMetadata,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
 
 /// Structure acting as scaffolding for serde when loading a spritesheet file.
 /// Positions originate in the top-left corner (bitmap image convention).
@@ -155,7 +151,7 @@ impl AnimatedSpritePrefab {
                 }
 
                 SpriteAnimationData::Transform {
-                    id,
+                    id: _,
                     animation_prefab,
                 } => {
                     animation_prefab
@@ -187,13 +183,13 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
         &self,
         entity: Entity,
         (
-            ref loader,
-            ref sprite_sheet_store,
-            ref texture_store,
+            ref _loader,
+            ref _sprite_sheet_store,
+            ref _texture_store,
             ref mut sprite_render_store,
             ref mut transform_store,
-            ref sampler_store,
-            ref animation_store,
+            ref _sampler_store,
+            ref _animation_store,
             ref mut animation_set_store,
             ref mut sprite_render_animation_set_store,
             ref mut transform_animation_prefab_system_data,
@@ -252,12 +248,12 @@ impl<'a> PrefabData<'a> for AnimatedSpritePrefab {
             ref loader,
             ref sprite_sheet_store,
             ref texture_store,
-            ref sprite_render_store,
-            ref transform_store,
+            ref _sprite_render_store,
+            ref _transform_store,
             ref sampler_store,
             ref animation_store,
-            ref mut animation_set_store,
-            ref mut sprite_render_animation_set_store,
+            ref mut _animation_set_store,
+            ref mut _sprite_render_animation_set_store,
             ref mut transform_animation_prefab_system_data,
         ): &mut Self::SystemData,
     ) -> Result<bool, PrefabError> {
