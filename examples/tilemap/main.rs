@@ -24,11 +24,7 @@ impl SimpleState for PlayState {
         initialise_camera(world);
         initialise_tilemap(
             world,
-            application_root_dir()
-                .unwrap()
-                .join("examples/tilemap/resources")
-                .to_str()
-                .unwrap(),
+            format!("{}/examples/tilemap/resources", application_root_dir()).as_str(),
             "map.tmx",
         );
     }
@@ -60,8 +56,11 @@ const BACKGROUND_COLOUR: [f32; 4] = [0.0, 0.0, 0.0, 0.0]; // black
 
 fn run() -> Result<(), amethyst::Error> {
     amethyst::start_logger(Default::default());
-    let root = application_root_dir()?.join("examples/tilemap/resources");
-    let config = DisplayConfig::load(root.join("display_config.ron"));
+    let root = application_root_dir();
+    let config = DisplayConfig::load(format!(
+        "{}/examples/tilemap/resources/display_config.ron",
+        root
+    ));
 
     let pipe = {
         Pipeline::build().with_stage(
@@ -74,7 +73,8 @@ fn run() -> Result<(), amethyst::Error> {
     let game_data = GameDataBuilder::default()
         .with_bundle(TransformBundle::new())?
         .with_bundle(RenderBundle::new(pipe, Some(config)))?;
-    let mut game = Application::build(root, PlayState)?.build(game_data)?;
+    let mut game = Application::build(format!("{}/examples/tilemap/resources", root), PlayState)?
+        .build(game_data)?;
     game.run();
     Ok(())
 }

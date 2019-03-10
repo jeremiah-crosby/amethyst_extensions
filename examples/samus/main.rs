@@ -166,8 +166,11 @@ impl SimpleState for Example {
 fn main() -> amethyst::Result<()> {
     amethyst::start_logger(Default::default());
 
-    let root = application_root_dir()?.join("examples/samus/resources");
-    let config = DisplayConfig::load(root.join("display_config.ron"));
+    let root = application_root_dir();
+    let config = DisplayConfig::load(format!(
+        "{}/examples/samus/resources/display_config.ron",
+        root
+    ));
     let pipe = Pipeline::build().with_stage(
         Stage::with_backbuffer()
             .clear_target([0.1, 0.1, 0.1, 1.0], 1.0)
@@ -199,7 +202,9 @@ fn main() -> amethyst::Result<()> {
                 .with_sprite_visibility_sorting(&[]), // Let's us use the `Transparent` component
         )?;
 
-    let mut game = Application::build(root, Loading::new())?.build(game_data)?;
+    let mut game =
+        Application::build(format!("{}/examples/samus/resources", root), Loading::new())?
+            .build(game_data)?;
     game.run();
     Ok(())
 }
