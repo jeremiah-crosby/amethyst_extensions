@@ -138,8 +138,8 @@ where
     ) {
         let camera: Option<(&Camera, &GlobalTransform)> = active
             .and_then(|a| {
-                let cam = camera.get(a.entity.unwrap());
-                let transform = global.get(a.entity.unwrap());
+                let cam = camera.get(a.entity?);
+                let transform = global.get(a.entity?);
                 cam.into_iter().zip(transform.into_iter()).next()
             })
             .or_else(|| (&camera, &global).join().next());
