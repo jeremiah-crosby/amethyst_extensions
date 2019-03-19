@@ -9,7 +9,7 @@ use genmesh::generators::{IndexedPolygon, Plane, SharedVertex};
 use genmesh::{Triangulate, Vertices};
 
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tiled::parse;
 
 use log::{debug, error};
@@ -26,7 +26,8 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
     use amethyst::assets::Handle;
     use amethyst::renderer::{Material, MaterialDefaults};
 
-    let map_file = match File::open(path_buf.as_path()) {
+    let map_path = path_buf.as_path();
+    let map_file = match File::open(map_path) {
         Err(e) => {
             error!("Error opening .tmx file: {}", e);
             return;
@@ -85,7 +86,7 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
             let tex_storage = world.read_resource();
 
             let mut tileset_path_buf = PathBuf::new();
-            tileset_path_buf.push(base_dir);
+            tileset_path_buf.push(map_path.parent().unwrap_or(Path::new("")).as_os_str());
             tileset_path_buf.push(image_source);
             let tilemap_material = Material {
                 albedo: loader.load(
