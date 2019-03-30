@@ -254,10 +254,6 @@ where
                 tileset_count: (tilesheet_dimensions.width * tilesheet_dimensions.height).into(),
             };
 
-            debug!(
-                "Updating FragmentArgs with tileset_count = {}",
-                tilesheet_dimensions.width * tilesheet_dimensions.height
-            );
             effect.update_constant_buffer("FragmentArgs", &fragment_args.std140(), encoder);
 
             effect.data.vertex_bufs.push(vbuf);

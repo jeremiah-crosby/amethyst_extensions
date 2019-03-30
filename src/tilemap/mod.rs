@@ -173,13 +173,17 @@ pub fn generate_tilemap_plane(
             let u_pos = (1.0 + old_v.pos.x) / 2.0;
             let v_pos = (1.0 + old_v.pos.y) / 2.0;
 
-            let tilemap_x = (u_pos * tilemap_width as f32).round();
-            let tilemap_y = (v_pos * tilemap_height as f32).round();
-
-            PosTex {
+            let pos_tex = PosTex {
                 position: Vector3::new(vertex_x, vertex_y, 0.0),
-                tex_coord: Vector2::new(tilemap_x, tilemap_height as f32 - tilemap_y),
-            }
+                tex_coord: Vector2::new(u_pos, v_pos),
+            };
+
+            debug!(
+                "tex_coords = ({}, {})",
+                pos_tex.tex_coord.y, pos_tex.tex_coord.y
+            );
+
+            pos_tex
         })
         .collect();
 
@@ -216,8 +220,7 @@ pub fn generate_tile_data(
                     0.0,
                 ]);
             } else {
-                // There's no tile, so push a really big invalid row index so the shader will render transparency.
-                tiles.push([100000.0, 0.0, 0.0, 0.0]);
+                tiles.push([0.0, 0.0, 0.0, 0.0]);
             }
         }
     }
@@ -270,11 +273,16 @@ impl TilemapLayer {
         // all pixels in square 1 being set to 1/tileset_count.
         for x in 0..(self.layer.tiles.len()) * tilesheet_dimensions.height as usize {
             let row = &self.layer.tiles[(x / tilesheet_dimensions.height as usize)];
-            debug!("row value = {}", row[0]);
             for y in 0..(row.len()) * tilesheet_dimensions.width as usize {
-                let normalized_index =
-                    row[y / tilesheet_dimensions.width as usize] as f32 / tileset_count as f32;
-                debug!("Push normalized index = {}", normalized_index);
+                // Indices in shader are zero-based, so let's do that here.
+                let tile_index = row[y / tilesheet_dimensions.width as usize] as f32 - 1.0;
+                let normalized_index = (tile_index / tileset_count as f32);
+                if (tile_index > 0.0) {
+                    debug!(
+                        "tile_index = {}, normalize_index = {}",
+                        tile_index, normalized_index
+                    );
+                }
                 data.push(normalized_index);
             }
         }

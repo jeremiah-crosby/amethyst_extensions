@@ -3,12 +3,6 @@
 uniform sampler2D TilesheetTexture;
 uniform sampler2D TilemapTexture;
 
-const int TILEMAP_BUF_LENGTH = 4096;
-
-layout (std140) uniform TileMapBuffer {
-    vec4 u_Data[TILEMAP_BUF_LENGTH];
-};
-
 layout (std140) uniform FragmentArgs {
     vec4 u_WorldSize;
     vec4 u_TilesheetSize;
@@ -33,9 +27,9 @@ void main() {
     // Remember I mentioned that I used Unity which requires Float4's for all textures
     // If you can have a single float for each "pixel" in your texture there is no need
     // for the .x at the end.
-    int index = int(texture(TilemapTexture, flipped_uv) * tilesetCount);
+    int index = int(floor(texture(TilemapTexture, vertex.tex_coord) * tilesetCount));
 
-    if (index == 0) {
+    if (index < 0) {
         discard;
     }
 
@@ -47,7 +41,7 @@ void main() {
     // that GL reads UV's from the bottom left.
     // A Y coordinate of 0.0 is the top of the image.
     // We want to read from the bottom left so we fix our UV to have the Y on the bottom.
-    ypos += 1;
+    //ypos += 1;
 
     // Step 4) Find the starting UV coordinate.
     // We divide by the size in tiles to take a coordinate like:
