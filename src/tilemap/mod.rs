@@ -4,13 +4,15 @@ use amethyst::core::{GlobalTransform, Transform};
 use amethyst::ecs::{Component, DenseVecStorage};
 use amethyst::prelude::*;
 use amethyst::renderer::PosTex;
-use amethyst::renderer::{Mesh, PngFormat, TextureMetadata};
+use amethyst::renderer::{
+    Mesh, PngFormat, TextureBuilder, TextureData, TextureHandle, TextureMetadata,
+};
 use genmesh::generators::{IndexedPolygon, Plane, SharedVertex};
-use genmesh::{Triangulate, Vertices};
+use genmesh::{EmitTriangles, MapVertex, Quad, Triangulate, Vertices};
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use tiled::parse;
+use tiled::{parse, Layer};
 
 use log::{debug, error};
 
@@ -64,8 +66,9 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
 
     let layers = &map.layers;
     for layer in layers {
-        let tilemap_layer = TilemapLayer {
+        let mut tilemap_layer = TilemapLayer {
             name: String::from(layer.name.as_str()),
+            layer: layer.clone(),
             tiles: generate_tile_data(&layer, tileset_width, tileset_height),
         };
 
@@ -73,7 +76,17 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
         let half_height: f32 = ((map.height * map.tile_height) / 2) as f32;
 
         let (mesh, material) = {
+            let tex_storage = world.read_resource();
             let loader = world.read_resource::<Loader>();
+
+            loader.load_from_data(
+                TextureData::F32(
+                    tilemap_layer.generate_tilemap_texture(&tilesheet_dimensions),
+                    TextureMetadata::srgb(),
+                ),
+                (),
+                &tex_storage,
+            );
 
             let mesh: Handle<Mesh> = loader.load_from_data(
                 generate_tilemap_plane(map.tile_width, map.width, map.height).into(),
@@ -82,8 +95,6 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
             );
 
             let mat_defaults = world.read_resource::<MaterialDefaults>();
-
-            let tex_storage = world.read_resource();
 
             let mut tileset_path_buf = PathBuf::new();
             tileset_path_buf.push(map_path.parent().unwrap_or(Path::new("")).as_os_str());
@@ -120,24 +131,25 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
     }
 }
 
+// TODO: Remove
 pub fn generate_tilemap_plane(
     tilesize: u32,
     tilemap_width: u32,
     tilemap_height: u32,
 ) -> Vec<PosTex> {
-    let plane = Plane::subdivide(tilemap_width as usize, tilemap_height as usize);
+    let plane = Plane::new();
 
     let half_width = (tilesize * tilemap_width) as f32 / 2.0;
     let half_height = (tilesize * tilemap_height) as f32 / 2.0;
 
     let vertex_data: Vec<PosTex> = plane
         .shared_vertex_iter()
-        .map(|(raw_x, raw_y)| {
-            let vertex_x = (half_width * raw_x).round();
-            let vertex_y = (half_height * raw_y).round();
+        .map(|old_v| {
+            let vertex_x = (half_width * old_v.pos.x).round();
+            let vertex_y = (half_height * old_v.pos.y).round();
 
-            let u_pos = (1.0 + raw_x) / 2.0;
-            let v_pos = (1.0 + raw_y) / 2.0;
+            let u_pos = (1.0 + old_v.pos.x) / 2.0;
+            let v_pos = (1.0 + old_v.pos.y) / 2.0;
 
             let tilemap_x = (u_pos * tilemap_width as f32).round();
             let tilemap_y = (v_pos * tilemap_height as f32).round();
@@ -213,7 +225,29 @@ impl Component for TilesheetDimensions {
 #[derive(Clone)]
 pub struct TilemapLayer {
     pub name: String,
+    pub layer: Layer,
     pub tiles: Vec<[f32; 4]>,
+}
+
+impl TilemapLayer {
+    pub fn generate_tilemap_texture(&self, tilesheet_dimensions: &TilesheetDimensions) -> Vec<f32> {
+        let mut data = Vec::new();
+
+        // We're mapping the texture from the set of tile indexes. so for each index, we need to generate all pixels in the tile with
+        // corresponding tile index. So if we have [1, 2, 3] (tilemap size of 1 * 3 = 3), then the result will have 9 pixels, with
+        // all pixels in square 1 being set to 1/tileset_count.
+        for x in 0..self.layer.tiles.len() * tilesheet_dimensions.height as usize {
+            let row = &self.layer.tiles[x / tilesheet_dimensions.height as usize];
+            for y in 0..row.len() * tilesheet_dimensions.width as usize {
+                data.push(row[y / tilesheet_dimensions.width as usize] as f32);
+                data.push(0.0);
+                data.push(0.0);
+                data.push(0.0);
+            }
+        }
+
+        data
+    }
 }
 
 impl Component for TilemapLayer {
