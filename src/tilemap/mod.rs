@@ -141,8 +141,8 @@ fn build_tilemap_texture_metadata(
 ) -> TextureMetadata {
     use gfx::format::ChannelType;
     let sampler_info = SamplerInfo::new(FilterMethod::Scale, WrapMode::Clamp);
-    let texture_width = tilemap_dimensions.width * tilesheet_dimensions.width;
-    let texture_height = tilemap_dimensions.height * tilesheet_dimensions.height;
+    let texture_width = tilemap_dimensions.width;
+    let texture_height = tilemap_dimensions.height;
     TextureMetadata {
         sampler: sampler_info,
         mip_levels: 1,
@@ -271,11 +271,11 @@ impl TilemapLayer {
         // We're mapping the texture from the set of tile indexes. so for each index, we need to generate all pixels in the tile with
         // corresponding tile index. So if we have [1, 2, 3] (tilemap size of 1 * 3 = 3), then the result will have 9 pixels, with
         // all pixels in square 1 being set to 1/tileset_count.
-        for x in 0..(self.layer.tiles.len()) * tilesheet_dimensions.height as usize {
-            let row = &self.layer.tiles[(x / tilesheet_dimensions.height as usize)];
-            for y in 0..(row.len()) * tilesheet_dimensions.width as usize {
+        for x in 0..(self.layer.tiles.len()) {
+            let row = &self.layer.tiles[(x)];
+            for y in 0..(row.len()) {
                 // Indices in shader are zero-based, so let's do that here.
-                let tile_index = row[y / tilesheet_dimensions.width as usize] as f32 - 1.0;
+                let tile_index = row[y] as f32 - 1.0;
                 let normalized_index = (tile_index / tileset_count as f32);
                 if (tile_index > 0.0) {
                     debug!(
