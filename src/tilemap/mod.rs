@@ -67,7 +67,7 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
 
     let layers = &map.layers;
     for layer in layers {
-        let mut tilemap_layer = TilemapLayer {
+        let tilemap_layer = TilemapLayer {
             name: String::from(layer.name.as_str()),
             layer: layer.clone(),
             tiles: generate_tile_data(&layer, tileset_width, tileset_height),
@@ -80,14 +80,16 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
             let tex_storage = world.read_resource();
             let loader = world.read_resource::<Loader>();
 
-            let tilemap_texture = loader.load_from_data(
-                TextureData::F32(
-                    tilemap_layer.generate_tilemap_texture(&tilesheet_dimensions),
-                    build_tilemap_texture_metadata(&tilemap_dimensions, &tilesheet_dimensions),
+            let tilemap_texture = TilemapTexture {
+                handle: loader.load_from_data(
+                    TextureData::F32(
+                        tilemap_layer.generate_tilemap_texture(&tilesheet_dimensions),
+                        build_tilemap_texture_metadata(&tilemap_dimensions, &tilesheet_dimensions),
+                    ),
+                    (),
+                    &tex_storage,
                 ),
-                (),
-                &tex_storage,
-            );
+            };
 
             let mesh: Handle<Mesh> = loader.load_from_data(
                 generate_tilemap_plane(map.tile_width, map.width, map.height).into(),
@@ -128,6 +130,7 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
             .with(tilemap_dimensions.clone())
             .with(tilesheet_dimensions.clone())
             .with(tilemap_layer)
+            .with(tilemap_texture)
             .build();
     }
 }
@@ -144,7 +147,7 @@ fn build_tilemap_texture_metadata(
         sampler: sampler_info,
         mip_levels: 1,
         dynamic: false,
-        format: SurfaceType::D32,
+        format: SurfaceType::R32,
         size: Some((texture_width as u16, texture_height as u16)),
         channel: ChannelType::Float,
     }
@@ -242,6 +245,15 @@ impl Component for TilesheetDimensions {
 }
 
 #[derive(Clone)]
+pub struct TilemapTexture {
+    pub handle: TextureHandle,
+}
+
+impl Component for TilemapTexture {
+    type Storage = DenseVecStorage<Self>;
+}
+
+#[derive(Clone)]
 pub struct TilemapLayer {
     pub name: String,
     pub layer: Layer,
@@ -251,14 +263,19 @@ pub struct TilemapLayer {
 impl TilemapLayer {
     pub fn generate_tilemap_texture(&self, tilesheet_dimensions: &TilesheetDimensions) -> Vec<f32> {
         let mut data = Vec::new();
+        let tileset_count = tilesheet_dimensions.width * tilesheet_dimensions.height;
 
         // We're mapping the texture from the set of tile indexes. so for each index, we need to generate all pixels in the tile with
         // corresponding tile index. So if we have [1, 2, 3] (tilemap size of 1 * 3 = 3), then the result will have 9 pixels, with
         // all pixels in square 1 being set to 1/tileset_count.
-        for x in 0..self.layer.tiles.len() * tilesheet_dimensions.height as usize {
-            let row = &self.layer.tiles[x / tilesheet_dimensions.height as usize];
-            for y in 0..row.len() * tilesheet_dimensions.width as usize {
-                data.push(row[y / tilesheet_dimensions.width as usize] as f32);
+        for x in 0..(self.layer.tiles.len()) * tilesheet_dimensions.height as usize {
+            let row = &self.layer.tiles[(x / tilesheet_dimensions.height as usize)];
+            debug!("row value = {}", row[0]);
+            for y in 0..(row.len()) * tilesheet_dimensions.width as usize {
+                let normalized_index =
+                    row[y / tilesheet_dimensions.width as usize] as f32 / tileset_count as f32;
+                debug!("Push normalized index = {}", normalized_index);
+                data.push(normalized_index);
             }
         }
 

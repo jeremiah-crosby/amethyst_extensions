@@ -22,7 +22,9 @@ use amethyst::renderer::pipe::{Effect, NewEffect};
 use gfx::{preset::blend::ALPHA, pso::buffer::ElemStride};
 use gfx_core::state::ColorMask;
 
-use super::{TilemapDimensions, TilemapLayer, TilesheetDimensions};
+use log::debug;
+
+use super::{TilemapDimensions, TilemapLayer, TilemapTexture, TilesheetDimensions};
 
 const TILEMAP_VERT_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_v.glsl");
 const TILEMAP_FRAG_SRC: &[u8] = include_bytes!("../../resources/shaders/tilemap_f.glsl");
@@ -39,12 +41,7 @@ struct VertexArgs {
 struct FragmentArgs {
     u_world_size: vec4,
     u_tilesheet_size: vec4,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct TileMapBuffer {
-    u_data: [[f32; 4]; 4096],
+    tileset_count: uint,
 }
 
 /// Draw mesh without lighting
@@ -85,6 +82,7 @@ where
         ReadStorage<'a, TilemapDimensions>,
         ReadStorage<'a, TilesheetDimensions>,
         ReadStorage<'a, TilemapLayer>,
+        ReadStorage<'a, TilemapTexture>,
     );
 }
 
@@ -98,9 +96,13 @@ where
             .simple(TILEMAP_VERT_SRC, TILEMAP_FRAG_SRC)
             .with_raw_constant_buffer("VertexArgs", mem::size_of::<VertexArgs>(), 1)
             .with_raw_vertex_buffer(V::QUERIED_ATTRIBUTES, V::size() as ElemStride, 0)
-            .with_raw_constant_buffer("TileMapBuffer", mem::size_of::<TileMapBuffer>(), 1)
-            .with_raw_constant_buffer("FragmentArgs", mem::size_of::<FragmentArgs>(), 1)
+            .with_raw_constant_buffer(
+                "FragmentArgs",
+                mem::size_of::<<FragmentArgs as Uniform>::Std140>(),
+                1,
+            )
             .with_texture("TilesheetTexture")
+            .with_texture("TilemapTexture")
             .with_blended_output("Color", ColorMask::all(), ALPHA, None)
             .build()
     }
@@ -122,6 +124,7 @@ where
             tilemap_dimensions,
             tilesheet_dimensions,
             tile_layer,
+            tilemap_texture,
         ): (
             Option<Read<'a, ActiveCamera>>,
             ReadStorage<'a, Camera>,
@@ -134,6 +137,7 @@ where
             ReadStorage<'b, TilemapDimensions>,
             ReadStorage<'b, TilesheetDimensions>,
             ReadStorage<'b, TilemapLayer>,
+            ReadStorage<'b, TilemapTexture>,
         ),
     ) {
         let camera: Option<(&Camera, &GlobalTransform)> = active
@@ -148,13 +152,22 @@ where
         let tex_storage = &tex_storage;
         let material_defaults = &material_defaults;
 
-        for (mesh, material, global, tilemap_dimensions, tilesheet_dimensions, tile_layer) in (
+        for (
+            mesh,
+            material,
+            global,
+            tilemap_dimensions,
+            tilesheet_dimensions,
+            tile_layer,
+            tilemap_texture,
+        ) in (
             &mesh,
             &material,
             &global,
             &tilemap_dimensions,
             &tilesheet_dimensions,
             &tile_layer,
+            &tilemap_texture,
         )
             .join()
         {
@@ -213,6 +226,16 @@ where
                     .push(tilesheet_texture.sampler().clone());
             }
 
+            let tilemap_texture_data = tex_storage.get(&tilemap_texture.handle).unwrap();
+            effect
+                .data
+                .textures
+                .push(tilemap_texture_data.view().clone());
+            effect
+                .data
+                .samplers
+                .push(tilemap_texture_data.sampler().clone());
+
             let fragment_args = FragmentArgs {
                 u_world_size: [
                     tilemap_dimensions.width as f32,
@@ -228,11 +251,13 @@ where
                     0.0,
                 ]
                 .into(),
+                tileset_count: (tilesheet_dimensions.width * tilesheet_dimensions.height).into(),
             };
-            //debug!("Updating TileMapBuffer");
-            effect.update_buffer("TileMapBuffer", &tile_layer.tiles[..], encoder);
 
-            //debug!("Updating FragmentArgs");
+            debug!(
+                "Updating FragmentArgs with tileset_count = {}",
+                tilesheet_dimensions.width * tilesheet_dimensions.height
+            );
             effect.update_constant_buffer("FragmentArgs", &fragment_args.std140(), encoder);
 
             effect.data.vertex_bufs.push(vbuf);
