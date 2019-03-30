@@ -5,7 +5,8 @@ use amethyst::ecs::{Component, DenseVecStorage};
 use amethyst::prelude::*;
 use amethyst::renderer::PosTex;
 use amethyst::renderer::{
-    Mesh, PngFormat, TextureBuilder, TextureData, TextureHandle, TextureMetadata,
+    FilterMethod, Mesh, PngFormat, SamplerInfo, SurfaceType, TextureBuilder, TextureData,
+    TextureHandle, TextureMetadata, WrapMode,
 };
 use genmesh::generators::{IndexedPolygon, Plane, SharedVertex};
 use genmesh::{EmitTriangles, MapVertex, Quad, Triangulate, Vertices};
@@ -75,14 +76,14 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
         let half_width: f32 = ((map.width * map.tile_width) / 2) as f32;
         let half_height: f32 = ((map.height * map.tile_height) / 2) as f32;
 
-        let (mesh, material) = {
+        let (mesh, material, tilemap_texture) = {
             let tex_storage = world.read_resource();
             let loader = world.read_resource::<Loader>();
 
-            loader.load_from_data(
+            let tilemap_texture = loader.load_from_data(
                 TextureData::F32(
                     tilemap_layer.generate_tilemap_texture(&tilesheet_dimensions),
-                    TextureMetadata::srgb(),
+                    build_tilemap_texture_metadata(&tilemap_dimensions, &tilesheet_dimensions),
                 ),
                 (),
                 &tex_storage,
@@ -110,7 +111,7 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
                 ..mat_defaults.0.clone()
             };
 
-            (mesh, tilemap_material)
+            (mesh, tilemap_material, tilemap_texture)
         };
 
         let mut transform = Transform::default();
@@ -128,6 +129,24 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
             .with(tilesheet_dimensions.clone())
             .with(tilemap_layer)
             .build();
+    }
+}
+
+fn build_tilemap_texture_metadata(
+    tilemap_dimensions: &TilemapDimensions,
+    tilesheet_dimensions: &TilesheetDimensions,
+) -> TextureMetadata {
+    use gfx::format::ChannelType;
+    let sampler_info = SamplerInfo::new(FilterMethod::Scale, WrapMode::Clamp);
+    let texture_width = tilemap_dimensions.width * tilesheet_dimensions.width;
+    let texture_height = tilemap_dimensions.height * tilesheet_dimensions.height;
+    TextureMetadata {
+        sampler: sampler_info,
+        mip_levels: 1,
+        dynamic: false,
+        format: SurfaceType::D32,
+        size: Some((texture_width as u16, texture_height as u16)),
+        channel: ChannelType::Float,
     }
 }
 
@@ -240,9 +259,6 @@ impl TilemapLayer {
             let row = &self.layer.tiles[x / tilesheet_dimensions.height as usize];
             for y in 0..row.len() * tilesheet_dimensions.width as usize {
                 data.push(row[y / tilesheet_dimensions.width as usize] as f32);
-                data.push(0.0);
-                data.push(0.0);
-                data.push(0.0);
             }
         }
 
