@@ -125,7 +125,7 @@ pub fn generate_tilemap_plane(
     tilemap_width: u32,
     tilemap_height: u32,
 ) -> Vec<PosTex> {
-    let plane = Plane::subdivide(tilemap_width as usize, tilemap_height as usize);
+    let plane = Plane::new();
 
     let half_width = (tilesize * tilemap_width) as f32 / 2.0;
     let half_height = (tilesize * tilemap_height) as f32 / 2.0;
