@@ -92,7 +92,7 @@ pub fn initialise_tilemap(world: &mut World, base_dir: &str, map_name: &str) {
                 albedo: loader.load(
                     tileset_path_buf.to_str().unwrap(),
                     PngFormat,
-                    TextureMetadata::srgb(),
+                    TextureMetadata::srgb_scale(),
                     (),
                     &tex_storage,
                 ),
@@ -182,8 +182,8 @@ pub fn generate_tile_data(
                     0.0,
                 ]);
             } else {
-                // There's no tile, so push a really big invalid row index so the shader will render transparency.
-                tiles.push([100000.0, 0.0, 0.0, 0.0]);
+                // There's no tile, so push negative tile coords so the shader can discard.
+                tiles.push([-1.0, -1.0, 0.0, 0.0]);
             }
         }
     }

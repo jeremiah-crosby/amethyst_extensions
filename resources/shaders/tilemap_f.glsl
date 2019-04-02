@@ -40,11 +40,15 @@ void main() {
         int bufIdx = int((bufTileCoords.y * u_WorldSize.x) + bufTileCoords.x);
 
         vec4 entry = u_Data[bufIdx];
+
+        if (entry.x < 0.0) {
+            discard;
+        }
+
         vec2 uvCoords = (entry.xy + rawUvOffsets) / u_TilesheetSize.xy;
         texData = texture(TilesheetTexture, uvCoords);
     } else {
-        // if we're here it means the buftilecoords are outside the buffer, so let's just show transparent
-        texData = vec4(0.0,0.0,0.0,0.0);
+        discard;
     }
 
     Color = texData;
